@@ -313,6 +313,7 @@ FaB[14, 15]在多个方面扩展了Kursawe的方法。首先，快速路线中�
 象鼻虫从FaB系统借鉴了最优化快速路线的想法，并从各个维度加强了这个方法。象鼻虫提供了一个状态复制机协议，而另一方面FaB是一个一次性的共识方案。象鼻虫在状态更新的执行中利用了投机性，允许一个高吞吐量的状态复制机的流水线(pipeline)，但是这确实Fab考虑范围之外的。最后，象鼻虫在检视变化协议中包含了检视序数，从而预防了我们如下讨论的Fab协议卡住的情况。
 
 \subsection{FaB协议系列概括}
+<<<<<<< Updated upstream
 Martin和Alvisi在[14, 15]中提出了快速拜占庭共识(FaB)，一个系列的参数化协议，建立在许多弹性假设下。文章使用了Paxos术语来塑造职责：提出者，接受者和学习者。它用提案序数来遍历提案。我们继续使用象鼻虫（和PBFT）的术语，并把这些翻译成领导者，复制机和检视序数。
 
 FaB有两个变种。第一个FaB的变种有$n = 5f + 1$个复制机，在它们中选出领导者来驱动检视中的协定。我们把这个变种称为FaB5。第二个变种是参数化的$n = 3f + 2t + 1$，我们用PFaB来指代。
@@ -327,11 +328,59 @@ FaB有两个变种。第一个FaB的变种有$n = 5f + 1$个复制机，在它�
 
 FaB5是活跃的原因是不存在任何两组$2f + 1$复制机会担保对方的值。因此，永远存在一个可以提出的安全值。
 
-\textbf{参数化的FaB.} \hspace{3mm} FaB的第二个变种被称作参数化FaB(简称PFaB)。
+\textbf{参数化 FaB.} \hspace{3mm} 第二个FaB的变种被称为参数化FaB（简称PFaB）。PFaB从一个历史悠久的早期停止共识(early-stopping consensus)处借鉴了最优快速执行路线的想法，尤其是从[10]中一个称为Kursawe的最优异步拜占庭协议合约。
 
+PFaB被$n = 3f + 2t + 1$参数化，这里$t \le f$。它有两个路线，快速路线和恢复路线。快速路线和FaB5一样，如果$n - t$个复制机接受了领导者的提议，那么决定就会在两步中形成。如果有一个正确的领导者和不超过$t$个拜占庭复制机，快速路线可以保证在同步时期完成。
+
+和FaB5不同的是，如果参数$t$，失败的临界值，被超过， 参数化FaB不能保证快速进程，即使是在同步时期。换言之，即使PFaB在不超过$f$个拜占庭失败的情况下依然是安全的，但它不一定总是快速的。只有在真实的拜占庭失败总数不超过$t$的情况下，快速路线才可以保证在同步时期在两步中被完成。
+
+如果进程暂停了，PFaB允许进程运行恢复协议，恢复协议本质上就是PBFT（调整适应了$n = 3f + 2t +1$）。
+
+更精确的说，在PFaB中，恢复路线四处寻求达成一个执行证书，称为执行证明(commit-proof)。当复制机接受了一个领导者的提议，在发送准备信息（ACCEPTED）给领导者的同时，复制机也发送签名过的准备信息给其他的复制机。当一个复制机在一个检视中接受到了$n - f - t$个包含有同一个值的准备信息，它达成一个执行证书，并把它经由执行信息的方式(COMMITPROOF)发送给其他复制机。
+
+如果包含有同一个值的$n - t$个准备信息被发出，或者$(n - f - t)$个执行信息被发出（有同一个值），那么一个决定就达成了。
+
+就像在FaB5中一样，PFaB发送安全值的核心机制就是从法定数量为$n - f$个复制机发出的包含新检视信息(REP)的进程证书(progress certificate)。不同的是，在PFaB，从复制机发出的新检视信息包括它在准备信息中发送的最后一个值以及它在执行信息中发出的最后一个执行证书。
+
+在PFaB中，一个进程证书担保(vouch)一个值如果不存在包含有同一个准备值$v'$的$f + t + 1$个新检视信息，且$v' \neq v$。并且不存在任何执行证书包含有$v'$，且$v' \neq v$。
 \subsection{被卡住}
+在这个部分，我们展示了一个进程证书可能有$f + t + 1$个新检视信息包含某些值，但一个执行证书包含了另一个值。PFaB被卡住的原因是证书无法担保任何值，因此新的领导者没有办法给出任何有效的提议。
 
+在这个场景里，我们设置$f = 1$, $t = 0$, $n = 3f + 2t + 1 = 4$。我们用$i_1, i_2, i_3, i_4$来表示复制机，其中$i_1$是拜占庭。这个场景中有一个检视变化。
+
+\subsubsection*{检视1}
+1. 领导者$i_1$(拜占庭)提前提出一个值$A$给$i_2, i_3$。
+2. $i_1, i_2, i_3$接受了提议并发出准备信息(ACCEPTED)。他们的准备信息只到达了$i_2$，$i_2$因此对于$A$达成了一个执行证书(COMMITPROOF)。
+3. 同时，领导者$i_1$含糊其辞并向$i_4$提前提出了值$B$。
+4. 所有进一步的准备信息，除却那些发送给$i_1$的，都被延迟了。这个延迟引发了一次检视变化。
+\subsubsection*{检视2}
+1. 新的领导者$i_2$从法定人数为$3$个的复制机群（包括它自己）中收集包括新检视信息(REP)的进程证书。
+\begin{itemize}
+	\item 对于$i_1$，新检视信息包括值$B$，并没有执行证书。
+	\item 对于$i_2$，新检视信息包括值$A$，并有一个执行证书。
+	\item 对于$i_4$，新检视信息包括值$B$, 并没有执行证书。
+\end{itemize}
+现在我们卡住了。这个进程证书包含两个有准备值$B$的信息（从$i_1$, $i_4$），因此，证书不会担保$A$。与此同时，这个进程证书包含一个有准备值$A$的信息（从$i_2$）。因此它也不会担保$B$。
+
+PFaB论文指出所有的进程证书都会至少担保一个值，但是不幸的是这个论证是错的。
 \subsection*{参考}
-暂略
+[1] Michael Abd-El-Malek, Gregory R. Ganger, Garth R. Goodson, Michael K. Reiter, and Jay J. Wylie. Fault-scalable byzantine fault-tolerant services. SIGOPS Oper. Syst. Rev., 39(5):59–74, October 2005.
+[2] Pierre-Louis Aublin, Rachid Guerraoui, Nikola Knezevic, Vivien Quema, and Marko Vukolic. The next 700 bft protocols. ACM Trans. Comput. Syst., 32(4):12:1–12:45, January 2015.
+[3] Miguel Castro and Barbara Liskov. Practical byzantine fault tolerance. In Proceedings of the Third Symposium on Operating Systems Design and Implementation, OSDI ’99, pages 173–186, Berkeley, CA, USA, 1999. USENIX Association.
+[4] Miguel Castro and Barbara Liskov. Practical byzantine fault tolerance and proactive recovery. ACM Trans. Comput. Syst., 20(4):398–461, November 2002.
+[5] Allen Clement, Manos Kapritsos, Sangmin Lee, Yang Wang, Lorenzo Alvisi, Mike Dahlin, and Taylor Riche. Upright cluster services. In Proceedings of the ACM SIGOPS 22Nd Symposium on Operating Systems Principles, SOSP ’09, pages 277–290, New York, NY, USA, 2009. ACM.
+[6] Cynthia Dwork, Nancy Lynch, and Larry Stockmeyer. Consensus in the presence of partial synchrony. J. ACM, 35(2):288–323, April 1988.
+[7] Ramakrishna Kotla, Lorenzo Alvisi, Mike Dahlin, Allen Clement, and Edmund Wong. Zyzzyva: Spec- ulative byzantine fault tolerance. Best paper award. In Proceedings of Twenty-first ACM SIGOPS Symposium on Operating Systems Principles, SOSP ’07, pages 45–58, New York, NY, USA, 2007. ACM.
+[8] Ramakrishna Kotla, Lorenzo Alvisi, Mike Dahlin, Allen Clement, and Edmund Wong. Zyzzyva: Spec- ulative byzantine fault tolerance. ACM Trans. Comput. Syst., 27(4):7:1–7:39, January 2010.
+[9] Ramakrishna Kotla, Allen Clement, Edmund Wong, Lorenzo Alvisi, and Mike Dahlin. Zyzzyva: Spec- ulative byzantine fault tolerance. Commun. ACM, 51(11):86–95, November 2008.
+[10] K. Kursawe. Optimistic byzantine agreement. In Proceedings of the 21st IEEE Symposium on Reliable Distributed Systems, pages 262 – 267, 2002.
+[11] Leslie Lamport. The part-time parliament. ACM Trans. Comput. Syst., 16:133–169, May 1998.
+[12] Leslie Lamport. Fast paxos. Distributed Computing, 19(2):79–103, October 2006.
+[13] Dahlia Malkhi and Michael Reiter. Byzantine quorum systems. Distrib. Comput., 11(4):203–213, Oc- tober 1998.
+[14] Jean-Philippe Martin. Fast byzantine consensus. Paper award. In Proceedings of the 2005 International Conference on Dependable Systems and Networks, DSN ’05, pages 402–411, Washington, DC, USA, 2005. IEEE Computer Society.
+[15] Jean-Philippe Martin and Lorenzo Alvisi. Fast byzantine consensus. IEEE Trans. Dependable Secur. Comput., 3(3):202–215, July 2006.
+[16] Brian M. Oki and Barbara H. Liskov. Viewstamped replication: A new primary copy method to support highly-available distributed systems. In Proceedings of the Seventh Annual ACM Symposium on Principles of Distributed Computing, PODC ’88, pages 8–17, New York, NY, USA, 1988. ACM.
+17] Diego Ongaro and John Ousterhout. In search of an understandable consensus algorithm. In Proc. USENIX Annual Technical Conference, pages 305–320, 2014.
+
 
 \end{document}
