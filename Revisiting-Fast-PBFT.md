@@ -1,7 +1,7 @@
 # 重温快速实用拜占庭容错算法
 
 - Ittai Abraham， Guy Gueta，Dahlia Malkhi, VMware Research 著
-- cr025, EthFans China, rchuqiao\@gmail.com译
+- Chuqiao rchuqiao@gmail.com译
 
 概括
 ====
